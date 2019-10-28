@@ -1,8 +1,8 @@
 #version 330 core
 out vec4 color;
-in vec3 vertex_color;
+in vec3 pos;
 void main()
 {
-	color.rgb = vertex_color;
-	color.a=1;	//transparency: 1 .. 100% NOT transparent
+	color.rgb = normalize(pos);
+	color.a = 1;
 }

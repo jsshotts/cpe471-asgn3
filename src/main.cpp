@@ -1,7 +1,7 @@
 /*
 ZJ Wood CPE 471 Lab 3 base code
 */
-
+#define _USE_MATH_DEFINES
 #include <iostream>
 #include <glad/glad.h>
 
@@ -19,7 +19,7 @@ using namespace std;
 double get_last_elapsed_time()
 {
 	static double lasttime = glfwGetTime();
-	double actualtime =glfwGetTime();
+	double actualtime = glfwGetTime();
 	double difference = actualtime- lasttime;
 	lasttime = actualtime;
 	return difference;
@@ -66,21 +66,21 @@ camera mycam;
 
 class Application : public EventCallbacks
 {
-
 public:
 	int kn = 0;
+	float globeRot = 0;
 	WindowManager * windowManager = nullptr;
 
 	// Our shader program
-	std::shared_ptr<Program> prog, shapeprog;
+	std::shared_ptr<Program> prog, sphereProg, globeprog;
 
 	// Contains vertex information for OpenGL
-	GLuint VertexArrayID;
+	GLuint VertexArrayID = 0;
 
 	// Data necessary to give our box to OpenGL
-	GLuint VertexBufferID, VertexColorIDBox, IndexBufferIDBox;
+	GLuint VertexBufferID = 0, VertexColorIDBox = 0, IndexBufferIDBox = 0;
 
-	Shape shape;
+	Shape shape, globe;
 
 	void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	{
@@ -96,6 +96,7 @@ public:
 		if (key == GLFW_KEY_W && action == GLFW_RELEASE)
 		{
 			mycam.w = 0;
+
 		}
 		if (key == GLFW_KEY_S && action == GLFW_PRESS)
 		{
@@ -107,19 +108,23 @@ public:
 		}
 		if (key == GLFW_KEY_A && action == GLFW_PRESS)
 		{
-			mycam.a = 1;
+			//mycam.a = 1;
+			globeRot = 0.02;
 		}
 		if (key == GLFW_KEY_A && action == GLFW_RELEASE)
 		{
 			mycam.a = 0;
+			globeRot = 0;
 		}
 		if (key == GLFW_KEY_D && action == GLFW_PRESS)
 		{
-			mycam.d = 1;
+			//mycam.d = 1;
+			globeRot = -0.02;
 		}
 		if (key == GLFW_KEY_D && action == GLFW_RELEASE)
 		{
 			mycam.d = 0;
+			globeRot = 0;
 		}
 		if (key == GLFW_KEY_N && action == GLFW_PRESS) kn = 1;
 		if (key == GLFW_KEY_N && action == GLFW_RELEASE) kn = 0;
@@ -135,7 +140,6 @@ public:
 		{
 			glfwGetCursorPos(window, &posX, &posY);
 			std::cout << "Pos X " << posX <<  " Pos Y " << posY << std::endl;
-
 		}
 	}
 
@@ -148,114 +152,112 @@ public:
 		glViewport(0, 0, width, height);
 	}
 
+	void mkClinder(shared_ptr<vector<GLfloat>> &verticies, shared_ptr<vector<GLfloat>> &colors, int numFaces)
+	{
+		float x, x2, y, y2, r = 1;
+		vec3 faceClr = { 1.0, 0, 0 };
+		vec3 sideClr = { 0, 0, 1.0 };
+		verticies = make_shared<vector<GLfloat>>(); // x, y, z make a Point
+		colors = make_shared<vector<GLfloat>>();    // r, g, b for one Point
+		
+		for (double t = 0, t2 = -(2 * M_PI) / numFaces; t >= -2 * M_PI; t=t2, t2 -= (2 * M_PI) / numFaces)
+		{
+			x = r * cos(t); y = r * sin(t);
+			x2 = r * cos(t2); y2 = r * sin(t2);
+			//front
+			verticies->push_back(0), verticies->push_back(0), verticies->push_back(1);
+			verticies->push_back(x2), verticies->push_back(y2), verticies->push_back(1);
+			verticies->push_back(x), verticies->push_back(y), verticies->push_back(1);
+			clr(colors, faceClr);
+			//sides
+			verticies->push_back(x2), verticies->push_back(y2), verticies->push_back(1);
+			verticies->push_back(x), verticies->push_back(y), verticies->push_back(-1);
+			verticies->push_back(x), verticies->push_back(y), verticies->push_back(1);
+			clr(colors, sideClr);
+			verticies->push_back(x2), verticies->push_back(y2), verticies->push_back(-1);
+			verticies->push_back(x), verticies->push_back(y), verticies->push_back(-1);
+			verticies->push_back(x2), verticies->push_back(y2), verticies->push_back(1);
+			clr(colors, sideClr);
+			//back
+			verticies->push_back(x), verticies->push_back(y), verticies->push_back(-1);
+			verticies->push_back(x2), verticies->push_back(y2), verticies->push_back(-1);
+			verticies->push_back(0), verticies->push_back(0), verticies->push_back(-1);
+			clr(colors, faceClr);
+		}
+	}
+	void clr(shared_ptr<vector<GLfloat>>& colors, vec3 &clr) {
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++)
+				colors->push_back(clr[j]);
+		}
+	}
+
+	/* just for debugging */
+	void printBuffers(shared_ptr<vector<GLfloat>>& verticies,
+		shared_ptr<vector<GLfloat>>& colors)
+	{
+		int v = 1, t = 1;
+		for (auto itr = verticies->begin(); itr != verticies->end(); itr++, v++)
+		{
+			cout << "(" << *itr << ", ";
+			itr++;
+			cout << *itr << ", ";
+			itr++;
+			cout << *itr << ")";
+			if (v % 3 == 0)
+			{
+				t++;
+				cout << endl;
+			}
+			else
+				cout << ", ";
+			if (t % 5 == 0)
+			{
+				t = 1;
+				cout << endl;
+			}
+		}
+	}
+
+	void initClyinder() {
+		shared_ptr<vector<GLfloat>> verticies, colors;
+		mkClinder(verticies, colors, 80);
+		//VAO
+		glGenVertexArrays(1, &VertexArrayID);
+		glBindVertexArray(VertexArrayID);
+		
+		//verticies
+		glGenBuffers(1, &VertexBufferID);
+		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferID);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * verticies->size(), verticies->data(), GL_DYNAMIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+		//color
+		glGenBuffers(1, &VertexColorIDBox);
+		glBindBuffer(GL_ARRAY_BUFFER, VertexColorIDBox);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * colors->size(), colors->data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+		glBindVertexArray(0);
+	}
+
 	/*Note that any gl calls must always happen after a GL state is initialized */
 	void initGeom()
 	{
+		initClyinder();
+
+		//init sphere
 		string resourceDirectory = "../resources";
-		//try t800.obj or F18.obj ...
 		shape.loadMesh(resourceDirectory + "/sphere.obj");
 		shape.resize();
 		shape.init();
 
-
-		//generate the VAO
-		glGenVertexArrays(1, &VertexArrayID);
-		glBindVertexArray(VertexArrayID);
-
-		//generate vertex buffer to hand off to OGL
-		glGenBuffers(1, &VertexBufferID);
-		//set the current state to focus on our vertex buffer
-		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferID);
-
-		GLfloat cube_vertices[] = {
-			// front
-			-1.0, -1.0,  1.0,
-			1.0, -1.0,  1.0,
-			1.0,  1.0,  1.0,
-			-1.0,  1.0,  1.0,
-			// back
-			-1.0, -1.0, -1.0,
-			1.0, -1.0, -1.0,
-			1.0,  1.0, -1.0,
-			-1.0,  1.0, -1.0,
-			//tube 8 - 11
-			-1.0, -1.0,  1.0,
-			1.0, -1.0,  1.0,
-			1.0,  1.0,  1.0,
-			-1.0,  1.0,  1.0,
-			//12 - 15
-			-1.0, -1.0, -1.0,
-			1.0, -1.0, -1.0,
-			1.0,  1.0, -1.0,
-			-1.0,  1.0, -1.0
-
-			
-		};
-		//actually memcopy the data - only do this once
-		glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_DYNAMIC_DRAW);
-
-		//we need to set up the vertex array
-		glEnableVertexAttribArray(0);
-		//key function to get up how many elements to pull out at a time (3)
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*) 0);
-
-		//color
-		GLfloat cube_colors[] = {
-			// front colors
-			1.0, 0.0, 0.5,
-			1.0, 0.0, 0.5,
-			1.0, 0.0, 0.5,
-			1.0, 0.0, 0.5,
-			// back colors
-			0.5, 0.5, 0.0,
-			0.5, 0.5, 0.0,
-			0.5, 0.5, 0.0,
-			0.5, 0.5, 0.0,
-			// tube colors
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-			0.0, 1.0, 1.0,
-		};
-		glGenBuffers(1, &VertexColorIDBox);
-		//set the current state to focus on our vertex buffer
-		glBindBuffer(GL_ARRAY_BUFFER, VertexColorIDBox);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(cube_colors), cube_colors, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-		glGenBuffers(1, &IndexBufferIDBox);
-		//set the current state to focus on our vertex buffer
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBufferIDBox);
-		GLushort cube_elements[] = {
-		
-			// front
-			0, 1, 2,
-			2, 3, 0,
-			// back
-			7, 6, 5,
-			5, 4, 7,
-			//tube 8-11, 12-15
-			8,12,13,
-			8,13,9,
-			9,13,14,
-			9,14,10,
-			10,14,15,
-			10,15,11,
-			11,15,12,
-			11,12,8
-			
-		};
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_elements), cube_elements, GL_STATIC_DRAW);
-
-
-
-		glBindVertexArray(0);
-
+		//init globe
+		globe.loadMesh(resourceDirectory + "/highResSphere.obj");
+		globe.resize();
+		globe.init();
 	}
 
 	//General OGL initialization - set OGL state here
@@ -270,8 +272,10 @@ public:
 		// Enable blending/transparency
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
 
-		// Initialize the GLSL program.
+		// cylinders.
 		prog = std::make_shared<Program>();
 		prog->setVerbose(true);
 		prog->setShaderNames(resourceDirectory + "/shader_vertex.glsl", resourceDirectory + "/shader_fragment.glsl");
@@ -285,21 +289,38 @@ public:
 		prog->addUniform("M");
 		prog->addAttribute("vertPos");
 		prog->addAttribute("vertColor");
-		// Initialize the GLSL program.
-		shapeprog = std::make_shared<Program>();
-		shapeprog->setVerbose(true);
-		shapeprog->setShaderNames(resourceDirectory + "/shape_vertex.glsl", resourceDirectory + "/shape_fragment.glsl");
-		if (!shapeprog->init())
+		// sphere.
+		sphereProg = std::make_shared<Program>();
+		sphereProg->setVerbose(true);
+		sphereProg->setShaderNames(resourceDirectory + "/shape_vertex.glsl", resourceDirectory + "/shape_fragment.glsl");
+		if (!sphereProg->init())
+		{
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1); //make a breakpoint here and check the output window for the error message!
+		}
+		sphereProg->addUniform("P");
+		sphereProg->addUniform("V");
+		sphereProg->addUniform("M");
+		sphereProg->addAttribute("vertPos");
+		sphereProg->addAttribute("vertNor");
+		sphereProg->addAttribute("vertTex");
+
+		// globe.
+		globeprog = std::make_shared<Program>();
+		globeprog->setVerbose(true);
+		globeprog->setShaderNames(resourceDirectory + "/globe_vertex.glsl", resourceDirectory + "/globe_fragment.glsl");
+		if (!globeprog->init())
 			{
 			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
 			exit(1); //make a breakpoint here and check the output window for the error message!
 			}
-		shapeprog->addUniform("P");
-		shapeprog->addUniform("V");
-		shapeprog->addUniform("M");
-		shapeprog->addAttribute("vertPos");
-		shapeprog->addAttribute("vertNor");
-		shapeprog->addAttribute("vertTex");
+		globeprog->addUniform("P");
+		globeprog->addUniform("V");
+		globeprog->addUniform("M");
+		globeprog->addUniform("camPos");
+		globeprog->addAttribute("vertPos");
+		globeprog->addAttribute("vertNor");
+		globeprog->addAttribute("vertTex");
 	}
 
 
@@ -308,15 +329,26 @@ public:
 	will actually issue the commands to draw any geometry you have set up to
 	draw
 	********/
+	float approach(float a, float n)
+	{
+		if (abs(a - n) < 0.00001)
+			return n;
+		if (a < n)
+			a += 0.01;
+		else if (a > n)
+			a -= 0.01;
+		return a;
+	}
+
 	void render()
 	{
-
 		double frametime = get_last_elapsed_time();
 		// Get current frame buffer size.
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		float aspect = width/(float)height;
 		glViewport(0, 0, width, height);
+
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -324,88 +356,148 @@ public:
 		// Create the matrix stacks - please leave these alone for now
 		
 		glm::mat4 V, M, P; //View, Model and Perspective matrix
-		V = glm::mat4(1);
-		M = glm::mat4(1);
+		V = mycam.process(frametime);
 		// Apply orthographic projection....
 		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width/ (float)height), 0.1f, 1000.0f); //so much type casting... GLM metods are quite funny ones
-
-		//animation with the model matrix:
-		static float w = 0.0;
-		w += 0.01;//rotation angle
-		static float t = 0;
-		t += 0.01;
-		float trans = 0;// sin(t) * 2;
-		glm::mat4 T = glm::mat4(1.0f);
-		glm::mat4 RotateX = glm::rotate(glm::mat4(1.0f), w, glm::vec3(-1.0f, 1.0f, 0.0f));
-		glm::mat4 TransZ = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0));
-		glm::mat4 TransX = glm::translate(glm::mat4(1.0f), glm::vec3(0.4f, 0.0f, 0.0));
-		glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-
 		
-		// Draw the box using GLSL.
-		prog->bind();
+		static float rot = 0;
+		rot += globeRot;
+		mat4 GR = rotate(mat4(1.0f), rot, vec3(0, 1, 0));
+		static float w = 0, rt = w, lt = w, h = w;
+		w += 0.01;
+		rt = approach(rt, asin(sin(w)));
+		lt = approach(lt, (M_PI-0.8)/2);
+		h = approach(h, M_PI / 2.5);
+		
+		// spheres
+		sphereProg->bind();
+		glUniformMatrix4fv(sphereProg->getUniform("P"), 1, GL_FALSE, &P[0][0]);
+		glUniformMatrix4fv(sphereProg->getUniform("V"), 1, GL_FALSE, &V[0][0]);
 
-		V = mycam.process(frametime);
-		//send the matrices to the shaders
+		//base
+		mat4 S1 = scale(mat4(1.0f), vec3(1, 1, 1));
+		mat4 TP1 = translate(mat4(1.0f), vec3(0, -1, 0));
+		mat4 M1 = TP1 * GR;
+		M = M1 * S1;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//body
+		mat4 S2 = scale(mat4(1.0f), vec3(0.8, 0.8, 0.8));
+		mat4 TP2 = translate(mat4(1.0f), vec3(0, 1, 0));
+		mat4 M2 = M1 * TP2;
+		M = M2 * S2;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//leftShoulder
+		mat4 S6 = scale(mat4(1.0f), vec3(0.5, 0.3, 0.3));
+		mat4 TP6 = translate(mat4(1.0f), vec3(-0.6, 0.2, 0));
+		mat4 M6 = M2 * TP6;
+		M = M6 * S6;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//rightShoulder
+		mat4 S9 = scale(mat4(1.0f), vec3(0.5, 0.3, 0.3));
+		mat4 TP9 = translate(mat4(1.0f), vec3(0.6, 0.2, 0));
+		mat4 M9 = M2 * TP9;
+		M = M9 * S9;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//head
+		mat4 S3 = scale(mat4(1.0f), vec3(0.5, 0.5, 0.5));
+		mat4 R3 = rotate(mat4(1.0f), cos(h), glm::vec3(0.0f, 1.0f, 0.0f));
+		mat4 TP3 = translate(mat4(1.0f), vec3(0, 1, 0));
+		mat4 M3 = M2 * TP3 * R3;
+		M = M3 * S3;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//leftEye
+		mat4 S4 = scale(mat4(1.0f), vec3(0.1, 0.1, 0.1));
+		mat4 TP4 = translate(mat4(1.0f), vec3(-0.2, 0.1, 0.4));
+		mat4 M4 = M3 * TP4;
+		M = M4 * S4;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//rightEye
+		mat4 S5 = scale(mat4(1.0f), vec3(0.1, 0.1, 0.1));
+		mat4 TP5 = translate(mat4(1.0f), vec3(0.2, 0.1, 0.4));
+		mat4 M5 = M3 * TP5;
+		M = M5 * S5;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//leftarm
+		mat4 S7 = scale(mat4(1.0f), vec3(0.15, 0.15, 0.5));
+		mat4 R7 = rotate(mat4(1.0f), (float)M_PI / 2, vec3(0, 1, 0));
+		mat4 TR7 = translate(mat4(1.0f), vec3(-0.5, 0, 0));
+		mat4 R7P = rotate(mat4(1.0f), lt, vec3(0, 0, 1));
+		mat4 TP7 = translate(mat4(1.0f), vec3(-0.3, 0, 0));
+		mat4 M7 = M6 * TP7 * R7P * TR7 * R7;
+		//lefthand
+		mat4 S8 = scale(mat4(1.0f), vec3(0.2, 0.2, 0.2));
+		mat4 TP8 = translate(mat4(1.0f), vec3(0, 0, -0.6));
+		mat4 M8 = M7 * TP8;
+		M = M8 * S8;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		//rightarm
+		mat4 S10 = scale(mat4(1.0f), vec3(0.15, 0.15, 0.5));
+		mat4 R10 = rotate(mat4(1.0f), (float)M_PI / 2, vec3(0, 1, 0));
+		mat4 TR10 = translate(mat4(1.0f), vec3(0.5, 0, 0));
+		mat4 R10P = rotate(mat4(1.0f), cos(rt), vec3(0, 0, 1));
+		mat4 TP10 = translate(mat4(1.0f), vec3(0.3, 0, 0));
+		mat4 M10 = M9 * TP10 * R10P * TR10 * R10;
+		//righthand
+		mat4 S11 = scale(mat4(1.0f), vec3(0.2, 0.2, 0.2));
+		mat4 TP11 = translate(mat4(1.0f), vec3(0, 0, 0.6));
+		mat4 M11 = M10 * TP11;
+		M = M11 * S11;
+		glUniformMatrix4fv(sphereProg->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(sphereProg);
+		sphereProg->unbind();
+
+		//cylinders
+		prog->bind();
+		glBindVertexArray(VertexArrayID);
 		glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, &P[0][0]);
 		glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, &V[0][0]);
+		//leftarm
+		M = M7 * S7;
 		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-
-		glBindVertexArray(VertexArrayID);
-		//actually draw from vertex 0, 3 vertices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBufferIDBox);
-		
-		TransX = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
-		M = TransX  * S;
+		glDrawArrays(GL_TRIANGLES, 0, 10000);
+		//rightarm
+		M = M10 * S10;
 		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, (void*)0);
-		
+		glDrawArrays(GL_TRIANGLES, 0, 10000);
 
-
-		static float ww = -0.5;
-
-		if(kn==1)
-			ww += 0.01;
-		mat4 Sa = glm::scale(glm::mat4(1.0f), glm::vec3(0.1, 1, 0.1));
-		mat4 Ta = glm::translate(glm::mat4(1.0f), glm::vec3(0, -0.8, 0));
-		mat4 RaZ = glm::rotate(glm::mat4(1.0f), ww, glm::vec3(0.0f, 0.0f, 1.0f));
-		mat4 TaP = glm::translate(glm::mat4(1.0f), glm::vec3(-1, 1, 0));
-
-		M = TaP*RaZ*Ta*Sa;
-		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, (void*)0);
 		glBindVertexArray(0);
 		prog->unbind();
 
+		// globe
+		globeprog->bind();
+		glUniformMatrix4fv(globeprog->getUniform("P"), 1, GL_FALSE, &P[0][0]);
+		glUniformMatrix4fv(globeprog->getUniform("V"), 1, GL_FALSE, &V[0][0]);
+		glUniform3f(globeprog->getUniform("camPos"), -mycam.pos.x, -mycam.pos.y, -mycam.pos.z);
 
-		shapeprog->bind();
-		mat4 Shead = glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, 1));
-		mat4 Thead = glm::translate(glm::mat4(1.0f), glm::vec3(0, 2, 0));
-		M = Thead*Shead;
-		glUniformMatrix4fv(shapeprog->getUniform("P"), 1, GL_FALSE, &P[0][0]);
-		glUniformMatrix4fv(shapeprog->getUniform("V"), 1, GL_FALSE, &V[0][0]);
-		glUniformMatrix4fv(shapeprog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-		shape.draw(shapeprog);
-		shapeprog->unbind();
-
+		mat4 SSphere = scale(mat4(1.0f), vec3(5, 5, 5));
+		M = GR * SSphere;
+		glUniformMatrix4fv(globeprog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		shape.draw(globeprog); //swap to globe.draw(globeprog) for high res globe
+		globeprog->unbind();
 	}
-
 };
+
 //******************************************************************************************
 int main(int argc, char **argv)
 {
 	std::string resourceDir = "../resources"; // Where the resources are loaded from
 	if (argc >= 2)
-	{
 		resourceDir = argv[1];
-	}
 
 	Application *application = new Application();
 
 	/* your main will always include a similar set up to establish your window
 		and GL context, etc. */
 	WindowManager * windowManager = new WindowManager();
-	windowManager->init(1920, 1080);
+	windowManager->init(1400, 800);
 	windowManager->setEventCallbacks(application);
 	application->windowManager = windowManager;
 

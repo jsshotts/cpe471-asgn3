@@ -4,9 +4,11 @@ layout(location = 1) in vec3 vertColor;
 uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
-out vec3 vertex_color;
+out vec3 pos;
 void main()
 {
-	vertex_color = vertColor;
+	pos.x = vertPos.x;
+	pos.y = vertPos.y;
+	pos.z = 0;
 	gl_Position = P * V * M * vec4(vertPos, 1.0);
 }
